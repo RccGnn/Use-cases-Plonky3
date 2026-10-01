@@ -30,7 +30,7 @@ use tracing_forest::ForestLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry, EnvFilter};
 
 // ---------------------------------------------------------------------
-// 1. WITNESS
+// 1. CIRCUITO
 // ---------------------------------------------------------------------
 const LOWER: u64 = 18;
 const UPPER: u64 = 30;
@@ -38,7 +38,7 @@ const UPPER: u64 = 30;
 /// E' necessario che le colonne della tabella di AIR siano una potenza di 2.
 const TRACE_ROWS: usize = 32;
 
-/// AIR (il circuito): in questo vanno solo le informazioni visibi a tutti:
+/// AIR: in questo vanno solo le informazioni visibi a tutti:
 /// i limiti inferiore e superiore e il numero di bit usati.
 pub struct RangeAir {
     lower: u64,
