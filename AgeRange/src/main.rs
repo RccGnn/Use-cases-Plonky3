@@ -34,6 +34,8 @@ use p3_uni_stark::{StarkConfig, SubAirBuilder, prove, verify}; // SubAirBuilder 
 
 use rand::{RngExt, SeedableRng};
 use rand::rngs::{StdRng, SysRng};
+use chrono::{Datelike, Utc};
+use std::sync::LazyLock;
 
 // Import necessari per il logging (tracing)
 use tracing_forest::ForestLayer;
@@ -48,7 +50,7 @@ const UPPER: u64 = 30;
 /// Anno "corrente" usato per derivare l'età dall'input dell'utente.
 /// E' un valore pubblico. 
 // todo!(calcolare da data corrente al momento).
-const CURRENT_YEAR: u64 = 2026;
+static CURRENT_YEAR: LazyLock<u64> = LazyLock::new(|| Utc::now().year() as u64);
 
 /// E' necessario che le righe della tabella di AIR siano una potenza di 2.
 const TRACE_ROWS: usize = 32;
@@ -240,11 +242,12 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for RangeAir {
 /// con l'età derivata e le colonne del range-check.
 fn generate_trace(air: &RangeAir, birth_year: u64, salt: u64) -> RowMajorMatrix<BabyBear> {
     type F = BabyBear;
+    let i = *CURRENT_YEAR;
     assert!(
-        CURRENT_YEAR >= birth_year,
-        "anno di nascita {birth_year} nel futuro rispetto a CURRENT_YEAR={CURRENT_YEAR}"
+        *CURRENT_YEAR >= birth_year,
+        "anno di nascita {birth_year} nel futuro rispetto all'anno corrente = {i}"
     );
-    let age = CURRENT_YEAR - birth_year;
+    let age = *CURRENT_YEAR - birth_year;
     assert!(
         age >= air.lower && age <= air.upper,
         "impossibile dimostrare {} <= età <= {}: l'affermazione è falsa (età = {age})",
@@ -325,8 +328,8 @@ fn make_config() -> MyConfig {
 // 3. PROVA EFFETTIVA: richiedi il witness (segreto), genera la prova e verificala
 // ---------------------------------------------------------------------
 fn read_secret() -> u64 {
-    let min_birth_year = CURRENT_YEAR - UPPER;
-    let max_birth_year = CURRENT_YEAR - LOWER;
+    let min_birth_year = *CURRENT_YEAR - UPPER;
+    let max_birth_year = *CURRENT_YEAR - LOWER;
     loop {
         print!(
             "Inserisci il tuo anno di nascita segreto (età risultante deve essere tra {LOWER} e {UPPER}, quindi anno tra {min_birth_year} e {max_birth_year}): "
@@ -367,7 +370,7 @@ fn main() {
     let config = make_config();
     let trace = generate_trace(&air, birth_year, salt);
     // *** L'unico valore pubblico: l'anno corrente, noto a chiunque verifichi. ***
-    let public_values: Vec<Val> = vec![Val::from_u64(CURRENT_YEAR)];
+    let public_values: Vec<Val> = vec![Val::from_u64(*CURRENT_YEAR)];
 
     // PROVER: table -> commit (Merkle) -> random challenges -> FRI -> proof
     let t0 = Instant::now();
@@ -380,9 +383,10 @@ fn main() {
     // VERIFIER: accede solo a config, AIR, proof, e ai valori pubblici
     // (commitment incluso nell'AIR, CURRENT_YEAR in public_values).
     let t1 = Instant::now();
+    let i = *CURRENT_YEAR;
     match verify(&config, &air, &proof, &public_values) {
         Ok(()) => println!(
-            "Verifier: PROVA VALIDA in {:?}. {LOWER} <= età <= {UPPER} confermato (CURRENT_YEAR={CURRENT_YEAR}).",
+            "Verifier: PROVA VALIDA in {:?}. {LOWER} <= età <= {UPPER} confermato (anno corrente = {i}).",
             t1.elapsed()
         ),
         Err(e) => println!("Verifier: PROOF INVALID ({e:?})"),
