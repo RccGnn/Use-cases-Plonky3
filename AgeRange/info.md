@@ -7,6 +7,14 @@
 
 Sono stati utilizzati i log nativi di Plonky3 il quale, a sua volta, usa internamente il crate (tracing-subscriber e tracing-forest) tracing di Rust per generare stampe degli eventi di creazione a verifica della ZKP.
 
+## Affidabilità del sistema
+
+L'input $n$ viene vincolato a un dato reale di cui il verifier si fida: un commitment pubblico firmato dall'emittente generato dall'AIR Poseidon2 `(birth_year, salt)`. Il prover non dimostra che esiste un numero generico tale che questo rientra entro un determinato range di valori, ma prova di conoscere il valore segreto associato a quel specifico commitment. 
+
+### Riuso
+Il commitment dell'emittente funziona da credenziale riutilizzabile nel tempo e permette di creare diversi predicati in quanto tale commitment è basato sul dato grezzo e immutabile (l'anno di nascita). Dentro il circuito, l'età viene derivata dinamicamente sottraendo l'anno di nascita inserito dall'utente un valore pubblico (ovvero l'anno corrente) fornito al momento della verifica: $$\text{age} = \text{anno corrente} - \text{anno di nascita}$$
+Questo rende la credenziale riutilizzabile anno dopo anno e adatta a dimostrare soglie diverse ($\ge 18$, $\ge 21$, $< 65$) senza dover richiedere nuove firme all'emittente.
+
 ## Decomposizione in bits per verificare che LOWER_BOUND $\le n \le$ UPPER_BOUND
 
 ### Perchè si usa?
