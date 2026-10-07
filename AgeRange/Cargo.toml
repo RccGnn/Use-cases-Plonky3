@@ -26,7 +26,7 @@ rand = { version = "0.10.1", default-features = false, features = ["std_rng", "s
 postcard = { version = "1.1.3", default-features = false, features = ["alloc"] }
 chrono = "0.4"
 
-# Stampe
+# Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-forest = "0.3.1"
