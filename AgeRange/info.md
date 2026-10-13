@@ -42,6 +42,11 @@ Di seguito sono riportate informazioni riguardo la valutazione della ZKP AgeRang
 2. Eseguire il comando `cargo build --release` (basta una volta)
 3. `cargo test --release --test param_evaluation -- --nocapture`
 4. I risultati dei test sono visualizzati in file csv nella cartella [AgeRange/target/experiments](target/experiments).
+
+In alternativa, per eseguire un solo set: 
+`cargo test --release --test fri_parameters set_b -- --nocapture`
+
+
 ## Risultati
 
 ### Dizionario delle colonne

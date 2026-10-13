@@ -7,12 +7,8 @@
 //!   3. tempo di generazione della prova e di verifica.
 //!
 //! Ogni `#[test]` è un set (A, B, C, D) e scrive un CSV in `target/experiments/`.
-//! Si lanciano SEMPRE in release (in debug i tempi non sono significativi):
 //!
-//!     cargo test --release --test fri_parameters -- --nocapture
-//!
-//! Un solo set:  cargo test --release --test fri_parameters set_b -- --nocapture
-//! Le ripetizioni per configurazione sono la costante `REPS` (modificarla qui sotto).
+//! Le ripetizioni per configurazione sono la costante `REPS`.
 
 // Si include `config.rs` così com'è, senza trasformare il progetto in una libreria.
 #[allow(dead_code)]
@@ -34,22 +30,20 @@ use rand::rngs::{StdRng, SysRng};
 use rand::{RngExt, SeedableRng};
 
 // ---------------------------------------------------------------------------
-// Costanti dell'esperimento
+// Costanti
 // ---------------------------------------------------------------------------
 
 /// Campo delle sfide (stesso di `config.rs`): serve solo per `Challenge::bits()`.
 type Challenge = BinomialExtensionField<Val, 4>;
 
-/// Righe della tabella negli esperimenti. Fisse per tutti i punti, altrimenti si
-/// confronterebbero carichi di lavoro diversi. 256 permette fino a ~120 query
-/// (vincolo di "hiding budget" della ZK: 2 * (4 * punti_di_apertura + query) <= righe).
+/// Righe della tabella nei test. Fisse per tutti i punti, altrimenti si
+/// confronterebbero carichi di lavoro diversi.
 const EXP_TRACE_ROWS: usize = 256;
 
 /// Resistenza alle collisioni di Keccak-256 (come negli esempi ufficiali di Plonky3).
 const COLLISION_BITS: usize = 128;
 
-/// Ripetizioni per ogni configurazione: si riporta la mediana (più robusta agli outlier,
-/// importante perché il tempo del PoW è casuale). Più alto = più preciso ma più lento.
+/// Ripetizioni per ogni configurazione: si riporta la mediana.
 const REPS: usize = 7;
 
 /// Valori di base: in ogni set due parametri stanno a questi valori.
@@ -67,7 +61,7 @@ static SALT: LazyLock<u64> = LazyLock::new(|| {
 static BENCH_LOCK: Mutex<()> = Mutex::new(());
 
 // ---------------------------------------------------------------------------
-// Tipi di supporto
+// Tipi helper
 // ---------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -100,8 +94,7 @@ struct Row {
 // ---------------------------------------------------------------------------
 
 /// Sicurezza: formula semplice di Plonky3 (`log_blowup * q + pow`) e stima ufficiale
-/// `ConjecturedSecurity` (include i tetti dovuti a campo e hash e la correzione
-/// "random words"). Si riportano entrambe.
+/// `ConjecturedSecurity`. Si riportano entrambe.
 fn security_bits(p: Params) -> (usize, usize) {
     let formula = p.log_blowup * p.num_queries + p.pow_bits;
     let official = ConjecturedSecurity::compute_ldt_only(
@@ -115,13 +108,13 @@ fn security_bits(p: Params) -> (usize, usize) {
     (formula, official)
 }
 
-/// Righe minime della tabella per poter fare `q` query in modalità zero-knowledge
-/// (vedi `hiding_budget` in `p3-fri`): 2 * (4 * 2 punti di apertura + q), potenza di 2.
+/// Righe minime della tabella per poter fare `q`.
+/// (da Plonky3, `hiding_budget` in `p3-fri`): 2 * (4 * 2 punti di apertura + q), potenza di 2.
 fn min_trace_rows(num_queries: usize) -> usize {
     (2 * (8 + num_queries)).next_power_of_two()
 }
 
-/// Una esecuzione completa. Restituisce `Err` se prove o verify falliscono.
+/// Una esecuzione completa. Restituisce `Err` se prove o verify falliscono. Simile a main.rs.
 fn run_once(p: Params, trace_rows: usize) -> Result<Measure, String> {
     let birth_year = *CURRENT_YEAR - HONEST_AGE;
     let commitment = compute_commitment(birth_year, *SALT);
@@ -146,10 +139,10 @@ fn run_once(p: Params, trace_rows: usize) -> Result<Measure, String> {
 fn median(mut v: Vec<f64>) -> f64 {
     v.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let n = v.len();
-    if n % 2 == 1 { v[n / 2] } else { (v[n / 2 - 1] + v[n / 2]) / 2.0 }
+    if n % 2 == 1 { v[n / 2] } else { (v[n / 2 - 1] + v[n / 2]) / 2.0 } // Valore centrale.
 }
 
-/// Misura un punto: 1 esecuzione di riscaldamento (scartata) + `REPS` esecuzioni.
+/// Misura un punto: `REPS` esecuzioni.
 fn measure_point(p: Params, trace_rows: usize) -> Row {
     run_once(p, trace_rows).unwrap_or_else(|e| {
         panic!(
@@ -178,7 +171,7 @@ fn measure_point(p: Params, trace_rows: usize) -> Row {
 fn run_set(name: &str, points: &[Params]) -> Vec<Row> {
     let _guard = BENCH_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     if cfg!(debug_assertions) {
-        eprintln!("ATTENZIONE: build di debug, tempi non significativi e molto lenti. Usa --release.");
+        eprintln!("ATTENZIONE: build di debug. Usa --release.");
     }
     println!("\n=== {name}  (righe tabella = {EXP_TRACE_ROWS}, ripetizioni = {REPS}) ===");
     println!(
