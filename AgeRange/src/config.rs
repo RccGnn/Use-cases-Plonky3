@@ -239,6 +239,19 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for RangeAir {
 /// Costruzione della tabella del prover: ogni riga combina la traccia di Poseidon2 (generata
 /// con l'età derivata e le colonne del range-check.
 pub fn generate_trace(air: &RangeAir, birth_year: u64, salt: u64) -> RowMajorMatrix<BabyBear> {
+    generate_trace_with_rows(air, birth_year, salt, TRACE_ROWS)
+}
+
+/// Come `generate_trace`, ma con numero di righe scelto dal chiamante (potenza di 2).
+/// Le righe sono tutte identiche (padding): il circuito AIR non cambia, cambia solo la
+/// dimensione della tabella (utile per testare i parametri FRI).
+pub fn generate_trace_with_rows(
+    air: &RangeAir,
+    birth_year: u64,
+    salt: u64,
+    trace_rows: usize,
+) -> RowMajorMatrix<BabyBear> {
+    assert!(trace_rows.is_power_of_two(), "trace_rows deve essere una potenza di 2");
     type F = BabyBear;
     let i = *CURRENT_YEAR;
     assert!(
@@ -264,7 +277,7 @@ pub fn generate_trace(air: &RangeAir, birth_year: u64, salt: u64) -> RowMajorMat
         P2_SBOX_REGISTERS,
         P2_HALF_FULL_ROUNDS,
         P2_PARTIAL_ROUNDS,
-    >(vec![state; TRACE_ROWS], &poseidon2_round_constants(), 0);
+    >(vec![state; trace_rows], &poseidon2_round_constants(), 0);
     let poseidon_width = air.poseidon_width();
 
     let d_low = age - air.lower;
@@ -281,8 +294,8 @@ pub fn generate_trace(air: &RangeAir, birth_year: u64, salt: u64) -> RowMajorMat
     }
 
     let row_width = poseidon_width + extra.len();
-    let mut values = Vec::with_capacity(TRACE_ROWS * row_width);
-    for r in 0..TRACE_ROWS {
+    let mut values = Vec::with_capacity(trace_rows * row_width);
+    for r in 0..trace_rows {
         values.extend_from_slice(&poseidon_trace.values[r * poseidon_width..(r + 1) * poseidon_width]);
         values.extend_from_slice(&extra);
     }
@@ -322,3 +335,25 @@ pub fn make_config() -> MyConfig {
     MyConfig::new(pcs, Challenger::from_hasher(vec![], ByteHash {}))
 }
 
+/// Come `make_config`, ma con i tre parametri FRI passati dal chiamante (permette di variarli nei test).
+/// Gli altri parametri restano fissi: `log_final_poly_len = 2`, `max_log_arity = 1`,
+/// nessun PoW sulle fasi di commit e di batching.
+#[allow(dead_code)] // usata solo dagli esperimenti in tests/fri_parameters.rs, non da main.rs
+pub fn make_config_with(log_blowup: usize, num_queries: usize, query_pow_bits: usize) -> MyConfig {
+    let val_mmcs = ValMmcs::new(FieldHash::new(ByteHash {}), Compress::new(ByteHash {}), 0, os_rng());
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
+
+    let fri_params = FriParameters {
+        log_blowup,
+        log_final_poly_len: 2,
+        max_log_arity: 1,
+        num_queries,
+        batch_proof_of_work_bits: 0,
+        commit_proof_of_work_bits: 0,
+        query_proof_of_work_bits: query_pow_bits,
+        mmcs: challenge_mmcs,
+    };
+
+    let pcs = Pcs::new(Radix2DitParallel::default(), val_mmcs, fri_params, 4, os_rng());
+    MyConfig::new(pcs, Challenger::from_hasher(vec![], ByteHash {}))
+}

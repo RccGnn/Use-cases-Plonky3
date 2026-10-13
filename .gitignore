@@ -22,3 +22,6 @@ target
 
 # Plonky3 usata solo per le dipendenze
 Plonky3/
+
+# Risultati dei test
+AgeRange/target/experiments/
