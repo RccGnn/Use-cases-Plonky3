@@ -33,7 +33,8 @@ La rappresentazione in bit previene questo problema perché un numero a n bit pu
 
 ---
 
-# Testing
+# Valutazione della ZKP
+
 Di seguito sono riportate informazioni riguardo la valutazione della ZKP AgeRange.
 
 ## Uso
@@ -43,8 +44,9 @@ Di seguito sono riportate informazioni riguardo la valutazione della ZKP AgeRang
 3. `cargo test --release --test param_evaluation -- --nocapture`
 4. I risultati dei test sono visualizzati in file csv nella cartella [AgeRange/target/experiments](target/experiments).
 
-In alternativa, per eseguire un solo set: 
-`cargo test --release --test fri_parameters set_b -- --nocapture`
+In alternativa, per eseguire un solo set di test:
+1. Spostarsi nella cartella `\Plonky\AgeRange`
+2. Eseguire il comando `cargo test --release --test fri_parameters set_b -- --nocapture`
 
 
 ## Risultati
